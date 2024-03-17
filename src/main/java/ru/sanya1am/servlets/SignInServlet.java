@@ -2,12 +2,10 @@ package ru.sanya1am.servlets;
 
 import ru.sanya1am.accounts.AccountService;
 
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-
 
 public class SignInServlet extends HttpServlet {
     private final AccountService accountService;
@@ -17,7 +15,7 @@ public class SignInServlet extends HttpServlet {
     }
 
 
-    public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+    public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
 
         String login = request.getParameter("login");
         String password = request.getParameter("password");
@@ -26,9 +24,11 @@ public class SignInServlet extends HttpServlet {
 
         // Если пользователь зарегистрирован, то устанавливаем статус 200 OK
         // В противном случае устанавливаем статус 401 UNAUTHORIZED
-        if (accountService.signIn(login, password)) {
+        boolean loginned = accountService.signIn(login, password);
+
+        if (loginned) {
             response.getWriter().println("Authorized: " + login);
-//            response.setStatus(HttpServletResponse.SC_OK);
+            response.setStatus(HttpServletResponse.SC_OK);
         } else {
             response.getWriter().println("Unauthorized");
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

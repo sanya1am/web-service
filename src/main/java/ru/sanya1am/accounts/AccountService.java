@@ -1,24 +1,32 @@
 package ru.sanya1am.accounts;
 
-import java.util.Map;
-import java.util.HashMap;
+import ru.sanya1am.database.DBService;
 
 public class AccountService {
-    private final Map<String, UserProfile> usersAccounts;
+    private final DBService dbService;
 
-    public AccountService() {
-        usersAccounts = new HashMap<>();
+    public AccountService(DBService dbService) {
+        this.dbService = dbService;
     }
 
+
     public void singUp(String login, String password) {
-        usersAccounts.put(login, new UserProfile(login, password));
+        try {
+            dbService.addUser(new UserProfile(login, password));
+        } catch (Exception e) {
+            System.out.println("Can't sing in: " + e.getMessage());
+        }
+
     }
 
     public boolean signIn(String login, String password) {
-        UserProfile profile = usersAccounts.get(login);
-
-        // Проверяем пароль зарегистрированного пользователя
-        return profile != null && profile.getLogin().equals(login) && profile.getPassword().equals(password);
+        try {
+            UserProfile profile = dbService.getUser(login);
+            return profile != null && profile.getLogin().equals(login) && profile.getPassword().equals(password);
+        } catch (Exception e) {
+            System.out.println("Can't sing in: " + e.getMessage());
+            return false;
+        }
 
     }
 }
