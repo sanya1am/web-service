@@ -1,6 +1,5 @@
 package ru.sanya1am.main;
 
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.server.Handler;
@@ -9,11 +8,11 @@ import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
-import ru.sanya1am.accountServer.AccountServer;
-import ru.sanya1am.accountServer.AccountServerController;
-import ru.sanya1am.accountServer.AccountServerControllerMBean;
-import ru.sanya1am.accountServer.AccountServerImpl;
-import ru.sanya1am.servlets.AdminPageServlet;
+import ru.sanya1am.resourceServer.ResourceServer;
+import ru.sanya1am.resourceServer.ResourceServerController;
+import ru.sanya1am.resourceServer.ResourceServerControllerMBean;
+import ru.sanya1am.resourceServer.ResourceServerImpl;
+import ru.sanya1am.servlets.ResourcePageServlet;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
@@ -27,17 +26,17 @@ public class Main {
         int port = 8080;
         logger.info("Starting at http://127.0.0.1:" + port);
 
-        AccountServer accountServer = new AccountServerImpl();
+        ResourceServer resourceServer = new ResourceServerImpl();
 
-        AccountServerControllerMBean serverStatistics = new AccountServerController(accountServer);
+        ResourceServerControllerMBean serverStatistics = new ResourceServerController(resourceServer);
         MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-        ObjectName name = new ObjectName("Admin:type=AccountServerController");
+        ObjectName name = new ObjectName("Admin:type=ResourceServerController");
         mbs.registerMBean(serverStatistics, name);
 
         Server server = new Server(port);
 
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        context.addServlet(new ServletHolder(new AdminPageServlet(accountServer)), AdminPageServlet.PAGE_URL);
+        context.addServlet(new ServletHolder(new ResourcePageServlet(resourceServer)), ResourcePageServlet.PAGE_URL);
 
         ResourceHandler resource_handler = new ResourceHandler();
         resource_handler.setDirectoriesListed(true);
@@ -47,20 +46,8 @@ public class Main {
         handlers.setHandlers(new Handler[]{resource_handler, context});
         server.setHandler(handlers);
 
-
         server.start();
         logger.info("Server started");
-        // Создаю поток для проверки setUsersLimit() через 10 сек после старта сервера
-        Thread taskThread = new Thread(() -> {
-            try {
-                Thread.sleep(10000);
-                accountServer.setUsersLimit(5);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        });
-        taskThread.start();
-
         server.join();
     }
 }
