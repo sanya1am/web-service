@@ -1,53 +1,64 @@
 package ru.sanya1am.main;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.handler.HandlerList;
-import org.eclipse.jetty.server.handler.ResourceHandler;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
-import ru.sanya1am.resourceServer.ResourceServer;
-import ru.sanya1am.resourceServer.ResourceServerController;
-import ru.sanya1am.resourceServer.ResourceServerControllerMBean;
-import ru.sanya1am.resourceServer.ResourceServerImpl;
-import ru.sanya1am.servlets.ResourcePageServlet;
-
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
-import java.lang.management.ManagementFactory;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.ServerSocket;
+import java.net.Socket;
 
 public class Main {
-    static final Logger logger = LogManager.getLogger(Main.class.getName());
 
     public static void main(String[] args) throws Exception {
+        // Запуск сервера для прослушивания клиентов на соккетах на порту 5050
+        try (ServerSocket serverSocket = new ServerSocket(5050)) {
+            System.out.println("Server started");
 
-        int port = 8080;
-        logger.info("Starting at http://127.0.0.1:" + port);
+            while (true) {
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("Client connected: " + clientSocket);
 
-        ResourceServer resourceServer = new ResourceServerImpl();
+                // Создание нового потока для обработки запроса от клиента
+                SocketThread socketThread = new SocketThread(clientSocket);
+                socketThread.start();
+            }
+        }
+    }
 
-        ResourceServerControllerMBean serverStatistics = new ResourceServerController(resourceServer);
-        MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-        ObjectName name = new ObjectName("Admin:type=ResourceServerController");
-        mbs.registerMBean(serverStatistics, name);
 
-        Server server = new Server(port);
+    private static class SocketThread extends Thread {
+        private final Socket clientSocket;
 
-        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        context.addServlet(new ServletHolder(new ResourcePageServlet(resourceServer)), ResourcePageServlet.PAGE_URL);
+        private SocketThread(Socket clientSocket) {
+            this.clientSocket = clientSocket;
+        }
 
-        ResourceHandler resource_handler = new ResourceHandler();
-        resource_handler.setDirectoriesListed(true);
-        resource_handler.setResourceBase("public_html");
+        @Override
+        public void run() {
+            System.out.println("Run: " + this.getName());
+            try (
+                    PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+                    BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))
+            ) {
+                String inputLine;
 
-        HandlerList handlers = new HandlerList();
-        handlers.setHandlers(new Handler[]{resource_handler, context});
-        server.setHandler(handlers);
+                // Чтение сообщений от клиента и отправка обратно
+                while ((inputLine = in.readLine()) != null) {
+                    out.println(inputLine);
 
-        server.start();
-        logger.info("Server started");
-        server.join();
+                    // В тестирующей программе именно "Bye." вместо "Bue.". Если получено = разрываем соединение
+                    if (inputLine.equals("Bye.")) {
+                        break;
+                    }
+                }
+
+                clientSocket.close();
+                System.out.println("Client disconnected: " + clientSocket);
+
+            } catch (IOException e) {
+                e.printStackTrace();
+                System.exit(1);
+            }
+        }
     }
 }
